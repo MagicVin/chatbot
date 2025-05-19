@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Multi-User ChatGPT</title>
+    <script>
+      async function sendMessage() {
+        const messageInput = document.getElementById("message");
+        const chatBox = document.getElementById("chat-box");
+        const message = messageInput.value;
+
+        if (!message) return;
+
+        chatBox.innerHTML += `<div><b>You:</b> ${message}</div>`;
+        messageInput.value = "";
+
+        const response = await fetch("/chat/", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({message: message})
+        });
+
+        const data = await response.json();
+        chatBox.innerHTML += `<div><b>GPT:</b> ${data.reply}</div>`;
+      }
+
+      function clearChat() {
+        fetch("/clear_chat/", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({})
+        }).then(() => {
+          document.getElementById("chat-box").innerHTML = "";
+          document.getElementById("pagination-controls").innerHTML = "";
+        });
+      }
+
+      async function loadChatPage(page=1) {
+        const chatBox = document.getElementById("chat-box");
+        const pagination = document.getElementById("pagination-controls");
+        const response = await fetch(`/chat_history/?page=${page}`);
+        const data = await response.json()
+
+        chatBox.innerHTML = "";
+        data.history.forEach(msg => {
+          chatBox.innerHTML += `<div><b>You:</b> ${msg.message}</div>`;
+          chatBox.innerHTML += `<div><b>GPT:</b> ${msg.response}</div>`;
+        });
+
+        pagination.innerHTML = "";
+        if (data.has_previous) {
+          pagination.innerHTML += `<button onclick="loadChatPage(${data.current_page - 1})">Previous</button>`;
+        }
+        pagination.innerHTML += ` <span>Page ${data.current_page} of ${data.num_pages}</span>`;
+        if (data.has_next) {
+          pagination.innerHTML += `<button onclick="loadChatPage(${data.current_page + 1})">Next</button>`;
+        }
+      }
+
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+
+      window.onload = () => loadChatPage();
+    </script>
+  </head>
+  <body>
+    {% if user.is_authenticated %}
+      <p>Welcome, {{ user.username }} | <a href="/logout/">Logout</a></p>
+      <button onclick="clearChat()">Clear History</button>
+      <div id="chat-box" style="height: 300px;overflow-y: scroll;border: 1px solid #ccc; padding: 10px;"></div>
+      <div id="pagination-controls" style="margin-top: 1opx;"></div>
+      <input type="text" id="message" placeholder="Type your message...">
+      <button onclick="sendMessage()">Send</button>
+    {% else %}
+      <p>Please <a href="/login/">login</a> to use the chat.</p>
+    {% endif %}
+  </body>
+</html>
