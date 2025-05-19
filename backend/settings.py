@@ -126,3 +126,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 OPENAI_API_KEY = config('openapi_key')
+
+LOGIN_REDIRECT_URL = "/index/"
+LOGIN_URL = "/login/"
